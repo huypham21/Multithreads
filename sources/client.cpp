@@ -99,14 +99,14 @@ void* worker_thread_function(void* arg) {
     while(true) {
         string request = req->request_buffer->pop();
 			req->channel->cwrite(request);
-            cout << "\nRequest: "<<request<<endl;
+            // cout << "\nRequest: "<<request<<endl;
 			if(request == "quit") {
 			   	delete req->channel;
                 break;
             }else{
 				string response = req->channel->cread();
 				req->hist->update (request, response);
-                cout<<"\nUpdate histogram HERE!\n";
+                // cout<<"\nUpdate histogram HERE!\n";
 			}
     }
 }
@@ -187,8 +187,8 @@ int main(int argc, char * argv[]) {
 
     struct worker_args workers[w];
     //  req_threads[3];
-    vector <pthread_t> threads;
-	for(int i=0; i<=w;i++){
+    pthread_t threads[w];
+	for(int i=1; i<w;i++){
         chan->cwrite("newchannel");
 		string s = chan->cread ();
         RequestChannel *workerChannel = new RequestChannel(s, RequestChannel::CLIENT_SIDE);
@@ -201,7 +201,7 @@ int main(int argc, char * argv[]) {
         
 
         pthread_create(&threads[i], NULL, worker_thread_function, (void*)&workers[i]);
-        threads.push_back(threads[i]);
+        // threads.push_back(threads[i]);
 
     }
 	for(int i=1; i<w;i++){
