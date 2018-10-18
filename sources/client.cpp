@@ -20,6 +20,7 @@
 #include <cmath>
 #include <numeric>
 #include <algorithm>
+#include <signal.h>
 
 #include <list>
 #include <vector>
@@ -35,15 +36,26 @@
 #include "Histogram.h"
 using namespace std;
 
-
-
-struct worker_args
-{
-   RequestChannel * channel;
-   SafeBuffer* buffer;
-   Histogram 
+struct req_args{
+    // RequestChannel* channel;
+    SafeBuffer* request_buffer;
+    // Histogram* hist;
+    int reqNum;
+    string name;
 };
 
+struct worker_args{
+    RequestChannel* channel;
+    SafeBuffer* request_buffer;
+    Histogram* hist;
+    // int reqNum;
+};
+
+void err_handler(int arg){
+    // system("rm fifo");
+    // printf("Client Sigsev\n");
+    // exit(0);
+}
 
 void* request_thread_function(void* arg) {
 	/*
@@ -59,9 +71,11 @@ void* request_thread_function(void* arg) {
 		the data requests are being pushed: you MAY NOT
 		create 3 copies of this function, one for each "patient".
 	 */
-
-	for(;;) {
-
+    struct req_args *req;
+    req = (struct req_args*)arg;
+	for(int i = 0; i < req->reqNum; i++) {
+        //enqueue requests
+        req -> request_buffer -> push(req->name);
 	}
 }
 
@@ -80,9 +94,20 @@ void* worker_thread_function(void* arg) {
 		RequestChannel you construct regardless of
 		whether you used "new" for it.
      */
-
+    struct worker_args *req;
+    req = (struct worker_args*)arg;
     while(true) {
-
+        string request = req->request_buffer->pop();
+			req->channel->cwrite(request);
+            cout << "\nRequest: "<<request<<endl;
+			if(request == "quit") {
+			   	delete req->channel;
+                break;
+            }else{
+				string response = req->channel->cread();
+				req->hist->update (request, response);
+                cout<<"\nUpdate histogram HERE!\n";
+			}
     }
 }
 
@@ -91,6 +116,12 @@ void* worker_thread_function(void* arg) {
 /*--------------------------------------------------------------------------*/
 
 int main(int argc, char * argv[]) {
+    // struct sigaction a;
+    // sigemptyset(&a.sa_mask);
+    // a.sa_handler = err_handler;
+    // a.sa_flags=0;
+    // sigaction(SIGSEGV,&a,0);
+
     int n = 100; //default number of requests per "patient"
     int w = 1; //default number of worker threads
     int opt = 0;
@@ -110,7 +141,6 @@ int main(int argc, char * argv[]) {
 		execl("dataserver", (char*) NULL);
 	}
 	else {
-
         cout << "n == " << n << endl;
         cout << "w == " << w << endl;
 
@@ -122,15 +152,25 @@ int main(int argc, char * argv[]) {
 		SafeBuffer request_buffer;
 		Histogram hist;
 
-        for(int i = 0; i < n; ++i) {
-            request_buffer.push("data John Smith");
-            request_buffer.push("data Jane Smith");
-            request_buffer.push("data Joe Smith");
+        struct req_args person[3];
+        pthread_t req_threads[3];
+        person[0].name="data John Smith";
+        person[1].name="data Jane Smith";
+        person[2].name="data Joe Smith";
+        // string reqJane="data Jane Smith";
+        // string reqJoe="data Joe Smith";
+        for(int i = 0; i < 3; ++i) {
+            person[i].request_buffer= &request_buffer;
+            person[i].reqNum=n;
+            pthread_create(&req_threads[i], NULL,request_thread_function,(void*)&person[i]);
+            // pthread_create(&Jane, NULL,request_thread_function,&reqJane);
+
+            // request_buffer.push("data John Smith");
         }
-
-//join your req thread
-
         cout << "Done populating request buffer" << endl;
+
+    //join your req threads
+    for(int i = 0; i< 3 ; i++){pthread_join(req_threads[i],NULL);}
 
         cout << "Pushing quit requests... ";
         for(int i = 0; i < w; ++i) {
@@ -138,33 +178,54 @@ int main(int argc, char * argv[]) {
         }
         cout << "done." << endl;
 
-	
+        // chan->cwrite("newchannel");
+		// string s = chan->cread ();
+        // RequestChannel *workerChannel = new RequestChannel(s, RequestChannel::CLIENT_SIDE);
+
+    timeval start,end;
+    gettimeofday(&start,NULL);
+
+    struct worker_args workers[w];
+    //  req_threads[3];
+    vector <pthread_t> threads;
+	for(int i=0; i<=w;i++){
         chan->cwrite("newchannel");
 		string s = chan->cread ();
         RequestChannel *workerChannel = new RequestChannel(s, RequestChannel::CLIENT_SIDE);
 
-for(i=1 to w){
-    chan->cwrit("newchannel")
-    string s = chan->cread()
-    RequestChannel = 
+        //spawn worker thread
 
-}
-        while(true) {
-            string request = request_buffer.pop();
-			workerChannel->cwrite(request);
+        workers[i].request_buffer = &request_buffer;
+        workers[i].channel = workerChannel;
+        workers[i].hist = &hist;
+        
 
-			if(request == "quit") {
-			   	delete workerChannel;
-                break;
-            }else{
-				string response = workerChannel->cread();
-				hist.update (request, response);
-			}
-        }
+        pthread_create(&threads[i], NULL, worker_thread_function, (void*)&workers[i]);
+        threads.push_back(threads[i]);
+
+    }
+	for(int i=1; i<w;i++){
+        pthread_join(threads[i],NULL);
+    }
+        // while(true) {
+        //     string request = request_buffer.pop();
+		// 	workerChannel->cwrite(request);
+
+		// 	if(request == "quit") {
+		// 	   	delete workerChannel;
+        //         break;
+        //     }else{
+		// 		string response = workerChannel->cread();
+		// 		hist.update (request, response);
+		// 	}
+        // }
         chan->cwrite ("quit");
         delete chan;
         cout << "All Done!!!" << endl; 
-
 		hist.print ();
+
+    gettimeofday(&end,NULL);
+    cout<< "\nTotal run time: "<<abs(end.tv_sec-start.tv_sec)<<"."<<abs(end.tv_usec-start.tv_usec)<<" sec\n";
+
     }
 }

@@ -4,11 +4,11 @@
 using namespace std;
 
 SafeBuffer::SafeBuffer() {
-	
+	pthread_mutex_init(&m,NULL);
 }
 
 SafeBuffer::~SafeBuffer() {
-	
+	pthread_mutex_destroy(&m);	
 }
 
 int SafeBuffer::size() {
@@ -16,31 +16,30 @@ int SafeBuffer::size() {
 	Is this function thread-safe???
 	Make necessary modifications to make it thread-safe
 	*/
+	pthread_mutex_lock(&m);
     return q.size();
+	pthread_mutex_unlock(&m);
 }
 
 void SafeBuffer::push(string str) {
-	mutex.lock()
 	/*
 	Is this function thread-safe???
 	Make necessary modifications to make it thread-safe
 	*/
+	pthread_mutex_lock(&m);
 	q.push (str);
-		mutex.unlock()
-
+	pthread_mutex_unlock(&m);
 }
 
 string SafeBuffer::pop() {
-	mutex.lock()
-
 	/*
 	Is this function thread-safe???
 	Make necessary modifications to make it thread-safe
 	*/
-
+	pthread_mutex_lock(&m);
 	string s = q.front();
 	q.pop();
-		mutex.unlock()
+	pthread_mutex_unlock(&m);
 
 	return s;
 }

@@ -8,8 +8,8 @@ using namespace std;
 
 class SafeBuffer {
 private:
-	queue<string> q;
-    mutex	
+    pthread_mutex_t m;
+	queue<string> q;	
 public:
     SafeBuffer();
 	~SafeBuffer();
