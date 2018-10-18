@@ -51,11 +51,7 @@ struct worker_args{
     // int reqNum;
 };
 
-void err_handler(int arg){
-    // system("rm fifo");
-    // printf("Client Sigsev\n");
-    // exit(0);
-}
+
 
 void* request_thread_function(void* arg) {
 	/*
@@ -116,11 +112,6 @@ void* worker_thread_function(void* arg) {
 /*--------------------------------------------------------------------------*/
 
 int main(int argc, char * argv[]) {
-    // struct sigaction a;
-    // sigemptyset(&a.sa_mask);
-    // a.sa_handler = err_handler;
-    // a.sa_flags=0;
-    // sigaction(SIGSEGV,&a,0);
 
     int n = 100; //default number of requests per "patient"
     int w = 1; //default number of worker threads
@@ -184,28 +175,46 @@ int main(int argc, char * argv[]) {
 
     timeval start,end;
     gettimeofday(&start,NULL);
-
-    struct worker_args workers[w];
-    //  req_threads[3];
-    pthread_t threads[w];
-	for(int i=1; i<w;i++){
+    if(w==1){
         chan->cwrite("newchannel");
 		string s = chan->cread ();
         RequestChannel *workerChannel = new RequestChannel(s, RequestChannel::CLIENT_SIDE);
 
-        //spawn worker thread
+        while(true) {
+            string request = request_buffer.pop();
+			workerChannel->cwrite(request);
 
-        workers[i].request_buffer = &request_buffer;
-        workers[i].channel = workerChannel;
-        workers[i].hist = &hist;
-        
-
-        pthread_create(&threads[i], NULL, worker_thread_function, (void*)&workers[i]);
-        // threads.push_back(threads[i]);
-
+			if(request == "quit") {
+			   	delete workerChannel;
+                break;
+            }else{
+				string response = workerChannel->cread();
+				hist.update (request, response);
+			}
+        }
     }
-	for(int i=1; i<w;i++){
-        pthread_join(threads[i],NULL);
+    else{
+        struct worker_args workers[w];
+        pthread_t threads[w];
+        for(int i=1; i<w;i++){
+            chan->cwrite("newchannel");
+            string s = chan->cread ();
+            RequestChannel *workerChannel = new RequestChannel(s, RequestChannel::CLIENT_SIDE);
+
+            //spawn worker thread
+
+            workers[i].request_buffer = &request_buffer;
+            workers[i].channel = workerChannel;
+            workers[i].hist = &hist;
+            
+
+            pthread_create(&threads[i], NULL, worker_thread_function, (void*)&workers[i]);
+            // threads.push_back(threads[i]);
+
+        }
+        for(int i=1; i<w;i++){
+            pthread_join(threads[i],NULL);
+        }
     }
         // while(true) {
         //     string request = request_buffer.pop();

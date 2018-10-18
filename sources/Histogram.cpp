@@ -22,8 +22,11 @@ void Histogram::update (string request, string response){
 	Is this function thread-safe???
 	Make necessary modifications to make it thread-safe
 	*/
+	pthread_mutex_lock(&m);
 	int person_index = map [request];
 	hist [person_index][stoi(response) / 10] ++;
+	pthread_mutex_unlock(&m);
+
 }
 void Histogram::print(){
 	cout << setw(10) << right << "Range";
