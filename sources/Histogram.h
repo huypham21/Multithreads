@@ -15,6 +15,7 @@ private:
 	vector<string> names; 				// names of the 3 persons
 public:
     Histogram();
+	~Histogram();
 	void update (string, string); 		// updates the histogram
     void print();						// prints the histogram
 };

@@ -234,7 +234,7 @@ int main(int argc, char * argv[]) {
 		hist.print ();
 
     gettimeofday(&end,NULL);
-    cout<< "\nTotal run time: "<<abs(end.tv_sec-start.tv_sec)<<"."<<abs(end.tv_usec-start.tv_usec)<<" sec\n";
+    cout<< "\nTotal run time: "<<abs(end.tv_sec-start.tv_sec)<<" sec and "<<abs(end.tv_usec-start.tv_usec)<<" micro sec\n";
 
     }
 }
